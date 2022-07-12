@@ -80,7 +80,7 @@ transform: perspective(500px) rotateX(45deg) rotateY(45deg);
 : 하위 요소를 관찰하는 원근거리를 지정
 : 단위 px
 
-<img src="./images/perspective.png" style="width: 400px; height:150px;">
+<img src="../images/perspective.png" style="width: 400px; height:150px;">
 
 👉🏻 perspective속성은 관찰 대상의 부모에 작성하고 perspective함수는 적용대상에 작성을 함
 
