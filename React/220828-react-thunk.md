@@ -2,14 +2,15 @@ TIL - 220828
 
 # ● Thunk를 이용해 비동기 작업을 처리하는 방법
 
-## Thunk
+## 📎 Thunk
 
+- **Redux에 함수를 dispatch하면 reducer로 전달하지 않고(= next를 호출하지 않고) 해당 함수를 실행시켜주는 간단한 redux middleware**
+- **보통 비동기 api request를 보내고, reponse를 액션에 담아 dispatch하는 패턴으로 작성**
 - 다른 작업이 완료될 때까지 작업을 지연시키는 함수이다.
-- 비동기 작업을 처리 시 유용함.
 - 작업을 반환하는 다른 함수를 반환한다...
-- toolkit에 내장되어있음.
+- toolkit은 Thunk 기반으로 작성이 되어있음.
 
-## createAsyncThunk
+## 📎 createAsyncThunk
 
 - **비동기 작업을 처리하는 action을 만들어 준다!**
 - action creator 생성
