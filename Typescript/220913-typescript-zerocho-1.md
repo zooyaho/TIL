@@ -223,3 +223,148 @@ try{ ...
 ```
 
 👉🏻 어떤 타입의 error가 발생할지 모르기때문에 error 메세지 프러퍼티 사용할 때 타입을 지정한다.
+
+## 타입 좁히기(타입 가드)
+
+- 매개면수의 타입에 따른 로직 작성
+- 배열타입을 확인 하려면 `Array.isArray(값)`을 사용한다.
+- 객체타입가드 작성 시 `in연산자, 타입`을 생성해 구별한다!
+- class 타입가드 작성 시 `instanceof`를 사용한다.
+- typeof
+
+## 커스텀 타입 가드(is, 형식 조건자)
+
+- 타입을 구분해주는 커스텀함수를 직접 만들수 있게 한다.
+- 반환타입에 `is`가 있으면 커스텀 타입 가드 함수이다!
+- 커스텀 타입 가드 함수는 if문 안에서 조건문으로 사용한다.
+- is가 아니면 타입추론이 안되는 경우도 있다.
+
+![](https://velog.velcdn.com/images/zooyaho/post/402c6a2f-0663-4fda-8d37-5e6ca3066d56/image.png)
+👉🏻 is가 있어야만 타입 구분을 할수있다.
+
+## {} 와 Object - v4.8
+
+- {}, Object는 모든 타입을 말한다.
+- {}, Object는 null | undefined를 제외한다.
+- 실제 객체타입을 말하는 건 object이다.
+- object는 지양하고 interface, type, class사용을 권장함.
+
+```js
+const x: {} = "hello";
+const y: Object = "hi"; // null | undefined 제외!!
+const yy: object = "hi"; // error
+const z: unknown = "z"; // 모든 타입을 받을 수 있음
+
+// v4.8: unknown = {} | null | undefined
+if (z) {
+  z;
+  // v4.7에서는 z의 타입이 unknown으로 나오지만 v4.8에서는 {}으로 지정된다.
+  // if문에서 null | undefined이 걸러지니까 {}으로 지정됨.
+}
+```
+
+## readonly, 인덱스드 시그니처, 맵드 타입스
+
+👾 readonly
+
+```js
+interface A {
+  readonly aa: number
+}
+const a: A = {aa: "Apple"};
+a.aa = 'Angle'; // error
+```
+
+👾 인덱스드 시그니처
+
+```js
+// type A =  { a:string; b:string; c:string; }
+type A = { [key: string]: string };
+```
+
+👾 맵드 타입스
+
+```js
+type Fruit = "apple" | "banana" | "orange";
+type FruitInfoA = { [key in fruit]: string };
+type FruitInfoB = { [key in fruit]: fruit };
+```
+
+## 클래스
+
+```js
+class A {
+  a: number;
+  b: string;
+  constructor(a: number, b: string = "123") {
+    this.a = a;
+    this.b = b;
+  }
+  x() {}
+}
+// typeof A == class의 이름인 A를 뜻함
+// A는 new A()를 뜻함
+const a: A = new A(123);
+const b: typeof A = A;
+```
+
+### private
+
+- TS의 private은 JS의 #과 다름
+- 컴파일 시 private은 public으로 변환
+
+```js
+class A {
+  #a: number = 123;
+  private b: string = "123";
+  x() {
+    console.log( this.#a, this.b );
+  }
+}
+const a: A = new A();
+```
+
+### public, private, protected
+
+- 실제 JS에서는 public, private는 사라짐
+
+|             | public | private | protected |
+| :---------: | :----: | :-----: | :-------: |
+| 클래스 내부 |   O    |    O    |     O     |
+|  인스턴스   |   O    |    X    |     X     |
+| 상속 클래스 |   O    |    X    |     O     |
+
+## 제네릭
+
+- 제네릭도 기본값을 줄 수 있음.
+- TS가 추론을 못할때 기본값을 부여하면 된다.(React에서 jsx문법과 혼동되어 추론이 잘 안될 수 있음)
+
+```js
+function add<T>(a: T, b: T): T {
+  return a + b;
+}
+// T에 타입 제한 걸기
+function minus<T extends number>(a: T, b: T): T {
+  return a + b;
+}
+```
+
+```js
+<T extends {...}>
+<T extends any[]>
+<T extends (...args: any) => any> // 모든 함수를 지정할 때 any사용해도됨. 함수라는 제한만 거는것이기 때문
+<T extends abstract new (...args: any) => any> // class 자체를 넣을 경우
+```
+
+```js
+// <T,> : ,만 둬도 가능해짐
+// const add = <T,>(a: T, b: T): T {
+//   return a + b;
+// }
+const add = <T = unknown>(a: T, b: T): T {
+  return a + b;
+}
+add(1,2); // a,b는 number로 기본 타입에서 덮어씀
+```
+
+👉🏻 React에서 jsx문법과 혼동되어 추론이 잘 안될 수 있어 T에 기본타입을 지정한다.
