@@ -1,74 +1,4 @@
-## 🔵 페이지 설정
-
-- pages폴더에 생성한 파일 이름은 경로 이름으로 사용된다.
-- 컴포넌트 이름은 마음대로 설정해도 됨.
-- SSR이 기본적으로 작동한다.
-
-### ● 중첩 경로 및 페이지 추가하기
-
-- 폴더를 생성하고 중첩경로에 해당하는 파일을 생성한다. <br>
-  ex) news 폴더 생성 &rarr; news/index.js(/news) &rarr; news/detail.js(/news/detail)
-
-### ● 동적페이지 만들기
-
-- 파일명을 `[식별자]`로 설정한다. <br>
-  ex) [newsId].js
-
-### ● 동적 매개변수 값 추출하기
-
-- 함수형 컴포넌트에서 사용 가능
-
-👾 pages/news/[newsId].js
-
-```js
-import { useRouter } from "next/router";
-
-export default function DetailPage() {
-  const router = useRouter();
-  // 중첩객체에 접근 가능, [식별자] 값 추출
-  const newsId = router.query.newsId;
-  console.log(newsId);
-  // newsId를 가지고 DB에서 해당 내용을 가져오면 된다.
-
-  return <h1>The Detail Page</h1>;
-}
-```
-
-### ● 페이지간 연결하기
-
-- Link 컴포넌트 사용하기
-
-```js
-import Link from "next/link";
-```
-
-### ● \_app.js
-
-- 최상위 컴포넌트
-- 모든 페이지에서 필요한 처리를 수행한다.(모든 페이지에 공통적으로 적용된다)
-- 페이지 간의 공통 레이아웃을 가질 수 있다.
-- 공통 상태를 가질 수 있음(Store를 설정해두면 좋다)
-- 글로벌 CSS (모든 페이지 공통)를 정의 할 수 있다.
-- 각 Route 구성 요소를 래핑한다.
-- Redux Provider 설정한다.
-
-```js
-import "../styles/globals.css";
-
-function MyApp({ Component, pageProps }) {
-  return (
-    <Provider store={store}>
-      <DefaultLayout>
-        <Component {...pageProps} />
-      </DefaultLayout>
-    </Provider>
-  );
-}
-
-export default MyApp;
-```
-
-## 🔵 페이지 렌더링 방법
+# 🔵 페이지 렌더링 방법
 
 ✅ 기본 React 방식
 
@@ -96,7 +26,7 @@ export default function HomePage() {
 - 이를 위해 NextJS는 페이지 렌더링 형태의 사전 렌더링을 제공하며 두가지 방법이 있다. 서로 다른 시점에 코드가 실행 된다.
 - NextJS는 사전 렌더링을 페이지 처음에만 하고, 추후에는 SPA(기본 React)으로 돌아간다.
 
-### ● 정적 사이트 생성(SSG - Static Site Generation)
+## ● 정적 사이트 생성(SSG - Static Site Generation)
 
 📎 `사전 생성`: 콘텐츠를 구성하는 모든 HTML 코드와 모든 데이터를 사전에 준비시켜 놓는다는 뜻<br>
 
@@ -106,7 +36,7 @@ export default function HomePage() {
 - NextJS에 이 페이지가 여전히 사전 생성되어야 하도록 한다는 것을 알릴수 있다.
 - NextJS에 어떤 페이지를 사전에 생성해야 하는지 지정해야하는데 사전 생성할 페이지에 어떤 데이터를 포함해야하는 지를 **페이지 컴포넌트 파일에서만 적용되는 특수함수를 export하여 사용해야한다.**
 
-#### ⭐️ getStaticProps
+### ⭐️ getStaticProps
 
 ```js
 export async function getStaticProps(props){...}
@@ -211,7 +141,7 @@ export async function getStaticProps(context) {
 - 지정한 시간이 지나면 서버에서 재생성된 가장 최신의 페이지를 제공한다.(오래된 기존 페이지를 대체하고 캐시한다)
 - 사전 렌더링을 계속 수행할 수 있다.
 
-##### ✨ revalidate 프러퍼티
+#### ✨ revalidate 프러퍼티
 
 - 페이지를 다시 생성할 때까지 NextJS가 대기하는 시간을 초단위로 지정한다.
 - 빌드 프로세스 중에 바로 생성되지 않고 대기 시간 이후로 페이지가 생성된다.
@@ -235,13 +165,159 @@ export async function getStaticProps() {
 }
 ```
 
-### ● 서버 사이드 렌더링(SSR)
+#### ✨ 데이터 fetching 실패 시 수행가능한 속성
+
+```js
+export async function getStaticProps(context) {
+  ...
+
+  if(!data){
+    // 아예 DB에 엑세스할 수 없을 경우
+    return {
+      redirect: {
+        destination: 'no-data',
+      }
+    }
+  }
+
+  if (data.products.length === 0) {
+    return { notFound: true };
+  }
+
+  return {
+    props: {...},
+    revalidate: 10,
+    // notFound: true
+    redirect:
+  }
+}
+```
+
+- `notFound : true | false`
+  - true 설정 : 페이지가 404 오류를 반환하며, 일반 페이지 대신에 404오류 페이지를 렌더링한다.
+  - 데이터 fetching 실패 시 수행한다.
+- `redirect : { destination: 'path'}`
+  - 사용자를 리디렉션 시킨다.
+  - 데이터 fetching 실패 시 수행한다.
+
+### 동적 매개변수 작업
+
+```js
+import fs from "fs";
+import path from "path";
+
+export default function ProductDetailPage(props) {
+  const { loadedProduct } = props;
+  return (
+    <>
+      <h1>{loadedProduct.title}</h1>
+      <p>{loadedProduct.description}</p>
+    </>
+  );
+}
+
+export async function getStaticProps(context) {
+  const { params } = context;
+  const productId = params.pid;
+
+  const filePath = path.join(process.cwd(), "data", "dummy_backend.json"); // 현재 작업 디렉토리 / 폴더 / 데이터파일
+  const jsonData = await fs.readFile(filePath);
+  const data = JSON.parse(jsonData);
+
+  const product = data.products.find((product) => product.id === productId);
+
+  console.log(product);
+
+  return {
+    props: {
+      loadedProduct: product, // product
+    },
+  };
+}
+```
+
+- 매개변수 `context` : 경로상의 동적 세그먼트에 대한 구체적인 값을 알수 있다.
+- `params`: 키-값 쌍의 객체
+  - 서버상에서 작업하기 위한 매개변수를 받을 수 있다.
+  - 데이터 사전 준비를 위한 매개변수를 받는다.
+  - useRouter로 가져온 매개변수는 브라우저상에서 작업할 때 사용하는 것이다.
+
+🚨 error 발생<br>
+
+- NextJS가 모든 페이지를 사전 렌더링 하는데 **동적 페이지에서는 사전 렌더링 하지 않는다.**
+- 여기서 동적 페이지는 [pid].js와 같은 동적 세그먼트가 있는 페이지를 말한다.
+- NextJS는 동적 페이지를 위해 얼마나 많은 페이지를 미리 생성해야 하는지 알지 못하기 때문에 사전 렌더링이 되지않는다.
+- 대신 서버에서 그때그때 생성된다!!
+
+![](https://velog.velcdn.com/images/zooyaho/post/c5dc48aa-b2bb-4d01-958a-b5749de40399/image.png)
+
+🔔 동적 페이지에서 NextJS는 어떤 [id]값이 사용 가능한지 어떤 동적 세그먼트 값을 사용할 수 있는지 알아야한다.
+
+### ⭐️ getStaticPaths
+
+```js
+export async function getStaticPaths() {
+  // NextJS가 각 ID에 대해 getStaticProps()를 세번 호출한다.
+  return {
+    paths: [
+      { params: { pid: "p1" } },
+      { params: { pid: "p2" } },
+      { params: { pid: "p3" } },
+    ],
+    fallback: false,
+  };
+}
+```
+
+- 동적 페이지의 어떤 인스턴스를 생성할지 NextJS에 알린다.
+- 객체를 반환.
+
+#### 🔸 paths
+
+- `paths`가 키고 인스턴스의 path의 데이터 객체를 가지는 배열값을 갖는다. (필수)
+- `params: { [id] : 'id값' }`
+  - key: 이 페이지로 연결하는 각각의 동적 세그먼트 식별자
+
+#### 🔸 fallback
+
+- `fallback: true | false`
+- 블로그의 수백 글이 있고, 방문객수는 없을 때 미리 모든 게시글을 사전 생성은 시간과 자원낭비이다.
+- `fallback: true`는 일부 페이지만 사전 렌더링할 수 있다.
+
+👾 p1페이지만 사전 렌더링하는 예시
+
+```js
+export async function getStaticPaths() {
+  return {
+    paths: [{ params: { pid: "p1" } }],
+    fallback: true,
+  };
+}
+```
+
+🚨 문제
+
+- url로 직접 페이지에 접속하게되면(페이지에 새로운 요청을 보내면) 에러가 발생한다.
+- 에러의 이유는 동적 사전 생성 기능이 즉시 끝나지 않기 때문이다.
+- 그러므로 fallback을 사용하려면 해당 페이지 컴포넌트에서 폴백 상태를 반환할 수 있게 해야한다.
+
+✅ 해결
+
+```js
+if (!loadedProduct) {
+  // 사전 생성할 부분이 존재하는지 확인하고
+  // 존재하지 않는다면 Loading과 같은 내용을 반환한다.
+  return <p>Loadig...</p>;
+}
+```
+
+## ● 서버 사이드 렌더링(SSR)
 
 - 빌드 프로세스 중에는 실행되지 않고 요청이 들어왔을때만 서버에서 실행이 된다.
 - 요청이 들어올 때까지 페이지가 만들어지는 것을 기다려야 한다.
 - 매초 여러 번 바뀌는 데이터를 가지고 있을 때 사용하는 것이 좋다.
 
-#### ⭐️ getServerSideProps
+### ⭐️ getServerSideProps
 
 - 인자로 context와 getStaticProps를 받을 수 있다.
 - 요청 객체에 접속할 필요가 없다면(인증처럼) getStaticProps이 좀 더 낫다.

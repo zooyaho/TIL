@@ -76,6 +76,7 @@ interface Profile {
 }
 const user: Omit<Profile, "married"> = {
   name: "jiwoo",
+  age: 24,
 };
 /*
 interface Profile {
@@ -84,6 +85,8 @@ interface Profile {
 }
 */
 ```
+
+👾 Pick, Exclude를 사용하여 Omit구현
 
 ```js
 type A = Exclude<keyof Profile,'married'>
@@ -98,25 +101,25 @@ const user:O<Profile, 'married'> = {
 
 ## Exclude
 
-- T에서 U타입을 빼는 것
-
-```js
-interface Profile {
-    name: string;
-    age: number;
-    married: boolean;
-}
-type A = Exclude<keyof Profile,'married'>
-/*
-interface Profile {
-  name: string;
-  age: number;
-}
-*/
-```
+- 타입을 제외함.
 
 ```js
 type Exclude<T, U> = T extends U ? never : T;
+```
+
+```js
+type Animal = 'Cat' | 'Dog' | 'Human';
+type Mammal = Exclude<Animal, 'Human'>; // 'Cat' | 'Dog'
+
+interface Profile {
+  name: string;
+  age: number;
+  married: boolean;
+}
+type A = Exclude<keyof Profile,'married'>
+/*
+type A = 'name' | 'age'
+*/
 ```
 
 ## Extract
@@ -125,4 +128,107 @@ type Exclude<T, U> = T extends U ? never : T;
 
 ```js
 type Extract<T, U> = T extends U ? T : never;
+```
+
+```js
+type Animal = 'Cat' | 'Dog' | 'Human';
+type Human = Extract<Animal, 'Human'>; // 'Human'
+
+type A = Extract<keyof Profile,'married'>
+/*
+type A = 'married'
+*/
+```
+
+## Required
+
+- 옵션 타입을 필수로 바꿔준다.
+
+```js
+interface Profile {
+  name?: string;
+  age?: number;
+  married?: boolean;
+}
+
+const zooyho: Required<Profile> = {
+  name: "jiwoo",
+  age: 24,
+  married: false,
+};
+```
+
+## Readonly
+
+```js
+interface Profile {
+  name?: string;
+  age?: number;
+  married?: boolean;
+}
+
+const zooyho: Readonly<Profile> = {
+  name: "jiwoo",
+  age: 24,
+  married: false,
+};
+
+zooyho.name = "mark"; // error
+```
+
+## -
+
+- 타입에서 ? or readonly를 빼고 가져와 적용한다.
+
+```js
+interface Profile {
+  readonly name?: string;
+  readonly age?: number;
+  readonly married?: boolean;
+}
+
+type R<T> = {
+  -readonly [key in keyof T]-? : T[key];
+}
+
+const zooyho: R<Profile> = {
+  name: "jiwoo",
+  age: 24,
+  married: false,
+};
+zooyho.age = 25;
+```
+
+## Record
+
+- 객체를 표현하는 한가지 방법
+
+👾 Record적용 전
+
+```js
+interface Obj {
+  [key: string]: number;
+}
+const a: Obj = { a: 3, b: 5, c: 7 };
+```
+
+👾 Record적용 후
+
+```js
+const a: Record<string, number> = { a: 3, b: 5, c: 7 };
+```
+
+## NonNullable
+
+- null과 undefined타입을 제외하고 가져와 타입을 지정한다.
+- type에서 사용하고 interface애서 사용 안함.
+
+```js
+type A = string | null | undefined | number;
+type B = NonNullable<A>; // string | number
+```
+
+```js
+type A = string | null | undefined | number;
+type N<T> = T extends null | undefined ? never : T;
 ```
