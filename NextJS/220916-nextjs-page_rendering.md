@@ -447,6 +447,45 @@ export async function getServerSideProps(context) {
   👉🏻 접속하자마자 처음부터 데이터가 있는 것보다는 페이지상에서 탐색이 빠른게 더 중요하다.
 - 다양한 데이터가 표시되는 대시보드 페이지의 경우, 모든 데이터를 한 번에 불러오도록 하면 서버에서 대시보드 요청을 처리하는 데 시간이 많이 소요되므로 개발 단계에서 이 페이지를 사전 렌더링할 이유가 없고 React 애플래케이션에 포함된 데이터를 사용자가 페이지에 방문할 때만 불러오도록 해야한다.
 
-### 페이지 사전 렌더링(Pre-rendering)
+👾 일반 React에서 api호출
 
-### 데이터 프리페칭(Pre-fetching)
+```js
+export default function LastSalesPage() {
+  const [value, setValue] = useState();
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // api 호출
+    setValue(data);
+    setIsLoading(true);
+  }, []);
+
+  if (isLoading) {
+    return <p>Loading....</p>;
+  }
+
+  if (!data) {
+    // 아직 data가 정의되어있지 않을 경우 반환!
+    return <p>No date yet</p>;
+  }
+
+  return (
+    <ul>
+      {value.map((v) => (
+        <li key={sale.id}>
+          {sale.username} - ${sale.volume}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+👉🏻 React에서 useEffect는 함수가 모든 컴포넌트의 최초 평가와 렌더링을 마친 뒤 실행하도록 설계되어 있어, 첫 렌더링 사이클에서는 sales가 정의되지 않아 isLoading가 false이므로 정의되지 않은 대상에 대해 map을 호출하여 error가 발생한 것이다.  
+👉🏻 data와 관련된 if문을 생성하여 error를 해결한다.
+
+✅ 결론
+
+- **getServerSideProps를 사용하지 않으면 Next.js에서 기본 페이지를 사전 렌더링한다!!!**
+- **위 예제애서 사용된 데이터는 NextJS에서 getStaticProps와 같은 함수로 준비한 것이 아니기 때문에 NextJS에서 페이지를 사전 렌더링할 때 useEffect를 거치지 않는다!!**
+- NextJS는 useEffect함수와 상관없이 컴포넌트에서 최초로 반환하는 결과로 사전 렌더링을 진행하기 때문에 조건문을 만들어야 error가 발생하지 않는다.
