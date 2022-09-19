@@ -232,3 +232,34 @@ type B = NonNullable<A>; // string | number
 type A = string | null | undefined | number;
 type N<T> = T extends null | undefined ? never : T;
 ```
+
+## infer
+
+(inference)
+
+- extends에서만 사용 가능하다.
+- 추론 조건 ? 추론 성공 시에 값 : 추론 실패 시의 값
+
+```js
+function zip(x: string, y: number, z: boolean): {x: string, y: number, z: boolean} {
+    return {x,y,z};
+}
+
+type Fn<T extends (...args: any)=> any> = T extends (...args: infer A ) => any ? A : never;
+type Params = Fn<typeof zip>;
+```
+
+## ReturnType
+
+- T라는 함수타입의 리턴 타입을 얻는다.
+
+```js
+function zip(
+  x: string,
+  y: number,
+  z: boolean
+): { x: string, y: number, z: boolean } {
+  return { x, y, z };
+}
+type Params = ReturnType<typeof zip>; // {x: string, y: number, z: boolean}
+```
