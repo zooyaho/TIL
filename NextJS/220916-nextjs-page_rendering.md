@@ -188,7 +188,6 @@ export async function getStaticProps(context) {
     props: {...},
     revalidate: 10,
     // notFound: true
-    redirect:
   }
 }
 ```
@@ -283,6 +282,7 @@ export async function getStaticPaths() {
 - `fallback: true | false`
 - 블로그의 수백 글이 있고, 방문객수는 없을 때 미리 모든 게시글을 사전 생성은 시간과 자원낭비이다.
 - `fallback: true`는 일부 페이지만 사전 렌더링할 수 있다.
+- `fallback: true`는 **파일에서 찾을 수 없는 ID에 대해서도 페이지를 렌더링할 수 있다. 동적 세그먼트의 모든 값에 대한 페이지를 일일이 다 사전 생성할 필요가 없다!**
 
 👾 p1페이지만 사전 렌더링하는 예시
 
@@ -299,30 +299,117 @@ export async function getStaticPaths() {
 
 - url로 직접 페이지에 접속하게되면(페이지에 새로운 요청을 보내면) 에러가 발생한다.
 - 에러의 이유는 동적 사전 생성 기능이 즉시 끝나지 않기 때문이다.
-- 그러므로 fallback을 사용하려면 해당 페이지 컴포넌트에서 폴백 상태를 반환할 수 있게 해야한다.
+- 그러므로 **fallback을 사용하려면 해당 페이지 컴포넌트에서 폴백 상태를 반환할 수 있게 해야한다.**
 
 ✅ 해결
 
 ```js
-if (!loadedProduct) {
-  // 사전 생성할 부분이 존재하는지 확인하고
-  // 존재하지 않는다면 Loading과 같은 내용을 반환한다.
-  return <p>Loadig...</p>;
+export default function ProductDetailPage(props) {
+  const { loadedProduct } = props;
+
+  if (!loadedProduct) {
+    // 사전 생성할 부분이 존재하는지 확인하고
+    // 존재하지 않는다면 Loading과 같은 내용(폴백 컨텐츠)을 반환한다.
+    return <p>Loadig...</p>;
+  }
+
+  return (
+    <>
+      <h1>{loadedProduct.title}</h1>
+      <p>{loadedProduct.description}</p>
+    </>
+  );
+}
+...
+export async function getStaticProps(context) {
+  const { params } = context;
+  const productId = params.pid;
+
+  const data = await getData();
+  const product = data.products.find((product) => product.id === productId);
+
+  return {
+    props: {
+      loadedProduct: product, // product
+    },
+  };
+}
+```
+
+### 존재하지 않은 페이지를 요청할 경우
+
+- `{ notFound: true }`: 반환한다.
+- 데이터가 누락된 일반 페이지를 반환하는 대신에 페이지를 찾을 수 없다는 404에러 페이지를 띄움.
+
+```js
+export async function getStaticProps(context) {
+  const { params } = context;
+  const productId = params.pid;
+
+  const data = await getData();
+  const product = data.products.find((product) => product.id === productId);
+
+  if (!product) {
+    // id에 대한 페이지가 없을 경우
+    return { notFound: true };
+  }
+
+  return {
+    props: {
+      loadedProduct: product, // product
+    },
+  };
 }
 ```
 
 ## ● 서버 사이드 렌더링(SSR)
 
-- 빌드 프로세스 중에는 실행되지 않고 요청이 들어왔을때만 서버에서 실행이 된다.
+- getStaticProps와 getStaticPaths는 일반적으로 프로젝트를 구축할 때 호출하기 때문에 내부에서 들어오는 실제 유입되는 실제 요청에 접근할 방법이 없다.
+
+- SSR은 유입되는 모든 요청에 대한 페이지를 사전 렌더링한다. 그래서 유입되는 모든 요청에 대해서나 서버에 도달하는 특정 요청 객체에 접근할 필요가 있다. 예를들어 쿠키를 추출하는 경우이다.
+- 페이지 컴포넌트 파일을 추가할 수 있는 함수를 제공하는데, 이 함수는 페이지 요청이 서버에 도달할 때마다 실행되는 함수이다. 서버에서만 작동하는 코드이다.
+- 애플리케이션을 배포한 후 유입되는 모든 요청에 대해서만 재실행된다.
+
+- 빌드 프로세스 중에는 실행되지 않고 요청이 들어왔을때만 **서버에서 실행이 된다.**
 - 요청이 들어올 때까지 페이지가 만들어지는 것을 기다려야 한다.
 - 매초 여러 번 바뀌는 데이터를 가지고 있을 때 사용하는 것이 좋다.
 
 ### ⭐️ getServerSideProps
 
+```js
+export async function getServerSideProps(context) {
+  return {
+    props: {},
+    // notFound: true | false (op)
+    // redirect: { destination: 'path' } (op)
+  };
+}
+```
+
+- 정의한 getServerSideProps 함수마다 들어오는 요청에 전부 유효성 검사를 실행하기 때문에 revalidate속성은 필요하지 않다~!
+- 페이지 컴포넌트 파일에서만 사용할 수 있으며, 이 함수가 있다면 해당 페이지에 대한 요청이 들어올 때마다 실행된다.
 - 인자로 context와 getStaticProps를 받을 수 있다.
 - 요청 객체에 접속할 필요가 없다면(인증처럼) getStaticProps이 좀 더 낫다.
+- 서버 사이드 코드에서 모든 요청을 처리하기 때문에 사전 생성할 필요도 없고 따라서 동적 경로 또한 미리 설정할 필요가 없다.
 
-- `const req = context.req;`: 요청 객체, 들어오는 요청에 접근, header와 body에도 접근 가능, 추가 데이터 정보를 받을 수 있다.
+🔔 예를들어 사용자 프로필 페이지를 구현할 때, [uid].js와 같은 동적 페이지는 다른 사용자가 url을 통해 볼 수 있게되므로, **쿠키와 헤더가 든 요청 객체에 접근해서 어느 사용자가 요청을 보냈는지 알아낸다.**
+
+#### ⭐️ context
+
+```js
+export async function getServerSideProps(context) {
+  const { params, req, res } = context; // 동적 컴포넌트라면 접근 가능!
+
+  console.log(req); // 기본 입력 메세지
+  console.log(res); // 응답에 대한 객체
+
+  return {...}
+}
+```
+
+- 요청(req), 응답(res) 객체 전체에 접근 가능
+- 요청(req)은 Next.js가 자동으로 해주며, 요청이 가기전에 헤더를 추가하거나 쿠키 추가 등 조정할 수 있다. 또한 서버에 도달한 요청 객체를 분석해서 거기서 들어오는 데이터(헤더나 쿠키 데이터등)를 읽을 수도 있다.
+- `const req = context.req;`: 요청 객체, 들어오는 요청에 접근, header와 body에도 접근과 수정 가능, 추가 데이터 정보를 받을 수 있다.
 - `const res = context.res;`: 응답 객체, 응답을 리턴하지 않고 prop key로 객체를 리턴한다. 이 키가 페이지 컴포넌트 함수 prop을 저장하고 있다.
 
 ```js
@@ -342,3 +429,24 @@ export async function getServerSideProps(context) {
   };
 }
 ```
+
+## λ
+
+- npm run build
+  ![](https://velog.velcdn.com/images/zooyaho/post/aebb6d1b-fbcd-42ed-b075-430c85bfd698/image.png)
+
+👉🏻 `λ`: 람다 기호가 있는 페이지들은 사전 생성하지 않고 서버 측에서만 사전 렌더링됐다는 뜻이다.
+
+## 클라이언트 사이드 데이터 페칭(Client-side data fetching)
+
+### 페이지를 사전 렌더링할 필요가 없는 경우
+
+- 데이터가 매초마다 여러 차례 변경된다면 프리페칭과 사전 렌더링을 하는 의미가 없음
+- 특정 유저에만 한정되는 데이터( 온라인 쇼핑몰의 최근 주문 내역과 같은 데이터 )
+- 계정에 접속해서 프로필 페이지에서 특정한 데이터를 열람하는 경우 &rarr; 검색 엔진에서도 개인 프로필을 확인하지 않음<br>
+  👉🏻 접속하자마자 처음부터 데이터가 있는 것보다는 페이지상에서 탐색이 빠른게 더 중요하다.
+- 다양한 데이터가 표시되는 대시보드 페이지의 경우, 모든 데이터를 한 번에 불러오도록 하면 서버에서 대시보드 요청을 처리하는 데 시간이 많이 소요되므로 개발 단계에서 이 페이지를 사전 렌더링할 이유가 없고 React 애플래케이션에 포함된 데이터를 사용자가 페이지에 방문할 때만 불러오도록 해야한다.
+
+### 페이지 사전 렌더링(Pre-rendering)
+
+### 데이터 프리페칭(Pre-fetching)
