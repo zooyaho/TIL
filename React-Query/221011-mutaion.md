@@ -265,3 +265,159 @@ const { data: user } = useQuery(
 - QueryClient메서드
 - **cancelQuery를 AbortController를 관리하는 동일한 키에 실행하는 경우 AbortController에 취소 이벤트를 전달한다!**
 
+### 👾 예제
+- 서버가 불안전한 상태에서 사용자 데이터 수정 후 submit 시 쿼리 취소 요청
+
+```js
+// usePatchUser.ts
+
+/*
+- 사용자 데이터 업데이트를 백드롭으로 사용해서 변이를 보낼 때 서버가 보낸 응답에서 캐시를 업데이트 하는 방법
+- usePathUser라는 훅은 서버에서 사용자를 업데이트하는데에 사용한다.
+- onSuccess는 서버로부터 응답을 받아 해당 데이터를 사용해 쿼리 캐시를 업데이트한다
+- useUser에 updateUser함수가 사용자의 state를 업데이트하고 쿼리 캐시, 로컬스토리지도 업데이트한다. updateUser는 인수로 사용자 데이터를 인식한다. 서버에서 받은 사용자 데이터를 인수로 updateUser에 전달한다.
+*/
+
+async function patchUserOnServer(
+  newData: User | null,
+  originalData: User | null,
+): Promise<User | null> {
+  if (!newData || !originalData) return null;
+  // create a patch for the difference between newData and originalData
+  // 두개의 JSON 데이터가 다른지 확인
+  const patch = jsonpatch.compare(originalData, newData);
+
+  // send patched data to the server
+  const { data } = await axiosInstance.patch(
+    // 서버에서 인증 보호된 라우터와 헤더를 보낸다.
+    `/user/${originalData.id}`,
+    { patch },
+    {
+      headers: getJWTHeader(originalData),
+    },
+  );
+  return data.user;
+}
+
+export function usePatchUser(): UseMutateFunction<
+  User,
+  unknown,
+  User,
+  unknown
+> {
+  const { user, updateUser } = useUser();
+  const toast = useCustomToast();
+  const queryClient = useQueryClient();
+
+  const { mutate: patchUser } = useMutation(
+    (newUserData: User) => patchUserOnServer(newUserData, user),
+    {
+      // onMutate returns context that is passed to onError
+      // 변이 함수로 전달된 모든 데이터를 onMutate 콜백으로 전달 받는다
+      onMutate: async (newData: User | null) => {
+        // 사용자 데이터를 대상으로 한 발신하는 쿼리는 모두 취소한다.
+        // 오래된 서버 데이터는 낙관적 업데이트를 덮어쓰지 않는다.
+        queryClient.cancelQueries(queryKeys.user);
+        // 기존 사용자 값의 스냅샷을 찍고
+        const previousUserData: User = queryClient.getQueryData(queryKeys.user);
+        // 새로운 값으로 캐시를 낙관적 업데이트하고
+        updateUser(newData);
+        // 이후 해당 context를 반환한다
+        return { previousUserData };
+      },
+      onError: (error, newData, previousUserDataContext) => {
+        // 오류가 있는 경우 저장된 값으로 캐시를 롤백한다
+        // error, newData는 사용하지 않음
+        // previousUserDataContext = { previousUserData }를 가진 객체
+        if (previousUserDataContext.previousUserData) {
+          updateUser(previousUserDataContext.previousUserData);
+          // 다시 복귀된 이유를 피드백으로 제공
+          toast({
+            title: 'Update failed: restoring previous values',
+            status: 'warning',
+          });
+        }
+      },
+      // onSuccess는 변이 함수에서 반환된 모든 값을 인자로 받는다!!
+      onSuccess: (userData: User | null) => {
+        if (userData) {
+          // 이미 완료되어 사용자를 더 이상 업데이트할 필요가 없다 > onMutate에서 업데이트 함!
+          // updateUser(userData);
+          toast({ title: 'User Updated!', status: 'success' });
+        }
+      },
+      onSettled: () => {
+        // 변이를 resolved 했을 때 성공여부와 관계 없이 onSettled콜백을 실행한다
+        // 사용자 데이터를 무효화하여 서버에서 최신 데이터를 보여줄 수 있도록 한다
+        queryClient.invalidateQueries(queryKeys.user);
+        // 쿼리가 무효화되면 리페치를 실행하여 데이터가 서버측과 동일하게 만든다.
+      },
+    },
+  );
+
+  return patchUser;
+}
+```
+```js
+// useUser.ts
+async function getUser(
+  user: User | null,
+  signal: AbortSignal,
+): Promise<User | null> {
+  // userID가 필요하기 때문에 인수로 user데이터를 받아와야 한다.
+  if (!user) return null; // 로그인한 사용자가 없으면 서버에 가지 않고 null을 반환한다.
+  const { data }: AxiosResponse<{ user: User }> = await axiosInstance.get(
+    `/user/${user.id}`, // 로그인한 사용자의 userId 데이터를 서버에서 가져온다.
+    {
+      // userId에 대한 데이터를 가져올 권한이 있는지 서버에서 확인하려면 JWTHeader를 포함해야 한다.
+      headers: getJWTHeader(user), // { Authorization: `Bearer ${user.token}` }
+      signal,
+    },
+  );
+  return data.user;
+}
+
+interface UseUser {
+  user: User | null;
+  updateUser: (user: User) => void;
+  clearUser: () => void;
+}
+
+/* useUser의 역할은 localStorage와 query cache에서 사용자의 상태를 유지하는 것 */
+export function useUser(): UseUser {
+  const queryClient = useQueryClient();
+  // 기존 user의 값을 이용해서 user의 값을 업데이트한다.
+  const { data: user } = useQuery(
+    queryKeys.user,
+    ({ signal }) => getUser(user, signal),
+    {
+      // const storedUser = localStorage.getItem(USER_LOCALSTORAGE_KEY);
+      // return storedUser ? JSON.parse(storedUser) : null;
+      initialData: getStoredUser,
+      // updateUser와 clearUser에서 값을 가져오면 각각 User와 null을 가져오므로 해당 타입 설정
+      onSuccess: (received: User | null) => {
+        if (!received) {
+          // localStorage.removeItem(USER_LOCALSTORAGE_KEY);
+          clearStoredUser();
+        } else {
+          // localStorage.setItem(USER_LOCALSTORAGE_KEY, JSON.stringify(received));
+          setStoredUser(received);
+          // setUser(data); > state에 사용자 데이터 저장
+        }
+      },
+    },
+  );
+
+  // meant to be called from useAuth
+  function updateUser(newUser: User): void {
+    // 사용자 로그인이나, 사용자 정보 업데이트를 처리
+    // setUser(newUser); > state에 사용자 데이터 업데이트
+    setStoredUser(newUser);
+    queryClient.setQueryData(queryKeys.user, newUser);
+  }
+
+  return { user, updateUser, clearUser };
+};
+```
+
+
