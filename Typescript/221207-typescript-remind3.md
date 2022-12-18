@@ -64,7 +64,7 @@ forEach([1, 2, 3], (el) => target.push(el));
 ## 16. unKnwon과 any(그리고 타입 대입 가능표)
 
 - `any`: 타입선언 포기와 같아 사용하게 되면 타입 추정을 하지 않음.
-- `unknown`: 추후에 타입을 지정한다는 의미.
+- `unknown`: 추후에 타입을 지정한다는 의미. `as unknown`으로 강제 타입 지정이 가능 하다.
 
 ```js
 try {
