@@ -73,3 +73,41 @@ try {
   (e as Error).message // 타입을 설정하고 사용해야 error 발생하지 않음.
 }
 ```
+
+## 17. 타입 좁히기(타입 가드)
+
+- 함수의 매개변수 타입이 여러개일 경우 if(조건문)을 사용하여 타입을 지정하면 해당 타입으로 추론함.
+
+```js
+function numOrNumArr(a: number | number[]) {
+  let answer;
+  if (Array.isArray(a)) {
+    // Array.isArray: 매개변수가 배열인지 확인하는 메서드
+    answer = a.map((n) => n + 1);
+  } else {
+    // 매개변수가 number일 경우
+    answer = a.toFixed(2);
+  }
+  console.log(answer);
+}
+numOrNumArr(123);
+numOrNumArr([1, 2, 3]);
+```
+
+- 객체 타입 경우 타입의 속성을 가지고 구별할 수 있음!!
+
+```js
+type A = { type: "a", aaa: "aaa" };
+type B = { type: "b", bbb: "bbb" };
+type C = { type: "c", ccc: "ccc" };
+
+function typeCheck(a: A | B | C) {
+  if (a.type === "a") {
+    console.log(a.aaa);
+  } else if (a.type === "b") {
+    console.log(a.bbb);
+  } else {
+    console.log(a.ccc);
+  }
+}
+```
