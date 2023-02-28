@@ -105,6 +105,8 @@ app.mount("#user-goal");
 - v-on:submit : 브라우저의 기본 기능(폼 제출 시 서버로 요청을 보내는 것, 이때 새로고침이 된다)을 막는 법!
 - 방법1) 기본 js에 내장된 event.preventDefault()를 호출한다.
 - 방법2) vue에서 제공하는 이벤트 수식어를 사용한다. => v-on:submit.prevent
+- @click.left(기본값), @click.right, @click.stop 등 다양한 수식어가 있음.
+- 해강 수식어에 맞는 동작을 할 경우 등록된 이벤트가 실행된다. 여기서 stop은 실행되지 않고 중단된다!!
 
 3. v-once : 초기 상태를 유지하면서 상태를 바꾸고 싶지 않을 때 사용할 수 있다. 보간법을 한번만 평가하게된다!!
 
@@ -345,3 +347,19 @@ app.mount("#styling");
   <div :class="['demo',{active: boxESeleted}]" @click="boxSelected('E')"></div>
 </section>
 ```
+
+## 기본6 - 조건부 렌더링
+
+- `v-if, v-else, v-else-if` 디렉티브로 js와 비슷하게 if문을 사용할 수 있다.
+- v-else를 사용하려면 요소들이 이웃해야한다.
+- ⭐️ v-if대신 `v-show`를 사용할 수 있지만 v-else, v-else-if를 같이 사용할 수 없다. v-if와의 차이점으로는 조건부렌더링을 할때, v-if는 dom에서 완전 제거하고, v-show는 dom에 제거하지않고 display:none으로 변경되어 보이지 않게 된다. v-show는 성능에 영향을 주지 않는다. 하지만 평소에는 v-if를 사용하는 것이 좋고, 가시성 상태가 자주 바뀌는 요소(토글)가 있을 경우 v-show를 사용하는 것이 좋다.
+- `v-for="item in arr"`로 데이터 프로퍼티를 출력할 수 있다. index 출력을 위해 `(item, idx) in arr`로 작성하면 된다. 객체 또한 출력이 가능한데 value만 출력된다. `(value, key, index) in obj`로 key 또한 출력 가능하다.
+- `v-for="num in 3"`으로 하면 1-3까지 출력이 가능하다.
+
+```html
+<li v-for="(item, idx) in arr">{{ item }} - {{ idx }}</li>
+<li v-for="(value, key) in {name: 'Mark', age: 25}">{{ value }} - {{ key }}</li>
+// Mark - name \n 25 - age 출력
+```
+
+- v-for를 사용할 때 `:key=""`를 추가해야 하는데, `key`는 출력하는 모든 항목에 대해 고유 식별 기준으로 작용하게 한다. key를 사용해야 dom을 재사용하는 vue가 각각의 요소들을 식별하여 업데이트를 수행할 수 있다.
