@@ -299,3 +299,70 @@ export default {
   :is-favorite="friend.isFavorite"
 ></friend-contact>
 ```
+
+## provide(제공), inject(삽입)
+
+- 한곳에 데이터를 제공하고 삽입, 즉 해당 데이터를 다른 곳에서 사용할 수 있는 패턴이다.
+- ⭐️ provide 프로퍼티를 사용하여 제공하고 inject 프로퍼티를 사용하여 사용한다.
+- provide 함수에 data메서드의 프로퍼티를 최신값으로 사용하여 추가할 수 있다.
+
+● App.vue - 부모컴포넌트
+
+```vue
+<script>
+export default {
+  provide() {
+    return {
+      topics: this.topics,
+      selectTopic: this.activateTopic,
+    };
+  },
+  methods: {
+    activateTopic(topicId) {
+      this.activeTopic = this.topics.find((topic) => topic.id === topicId);
+    },
+  },
+};
+</script>
+```
+
+● 자식 컴포넌트
+
+```vue
+<template>
+  <ul>
+    <knowledge-element
+      v-for="topic in topics"
+      :key="topic.id"
+      :id="topic.id"
+      :topic-name="topic.title"
+      :description="topic.description"
+    ></knowledge-element>
+  </ul>
+</template>
+
+<script>
+export default {
+  inject: ["topics"],
+};
+</script>
+```
+
+● 또 다른 자식 컴포넌트 - 커스텀 이벤트 대신 inject사용하여 컴포넌트 통신
+
+```vue
+<template>
+  <li>
+    <h3>{{ topicName }}</h3>
+    <p>{{ description }}</p>
+    <button @click="selectTopic(id)">Learn More</button>
+  </li>
+</template>
+
+<script>
+export default {
+  inject: ["selectTopic"],
+  props: ["id", "topicName", "description"],
+};
+</script>
+```
