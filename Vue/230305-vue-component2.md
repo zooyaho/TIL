@@ -160,3 +160,96 @@ export default {
 ```
 
 ![](https://velog.velcdn.com/images/zooyaho/post/84ecace2-9b0d-45a7-a836-4ee812d0c22a/image.png)
+
+## 동적 컴포넌트
+
+- `<component is=""></component>`
+- `is` 프로퍼티 키: component 요소에 정의한 컴포넌트 중 어떤 컴포넌트를 보여줄 지 알려준다. 컴포넌트의 이름을 지정하면 해당 컴포넌트가 출력된다.
+
+👾 예제
+● App.vue - 부모 컴포넌트
+
+```vue
+<template>
+  <div>
+    <button @click="setSelectedComponent('ManageGoals')">
+      ManageGoals button
+    </button>
+    <button @click="setSelectedComponent('ActiveGoals')">
+      ActiveGoals button
+    </button>
+    <!-- <ManageGoals v-if="selectedComponent === 'ManageGoals'" />
+    <ActiveGoals v-if="selectedComponent === 'ActiveGoals'" /> -->
+    <component :is="selectedComponent"></component>
+  </div>
+</template>
+<script>
+...
+export default {
+  components: {
+    ManageGoals,
+    ActiveGoals,
+  },
+  data() {
+    return {
+      selectedComponent: "ActiveGoals",
+    };
+  },
+  methods: {
+    setSelectedComponent(cmp) {
+      this.selectedComponent = cmp;
+    },
+  },
+};
+</script>
+```
+
+● ManageGoals.vue, ActiveGoals.vue - 자식 컴포넌트
+
+```vue
+// ManageGoals.vue
+<template>
+  <h2>Manage Goals</h2>
+</template>
+// ActiveGoals.vue
+<template>
+  <h2>Active Goals</h2>
+</template>
+```
+
+### keep-alive 컴포넌트
+
+- 특정 기능을 앱에 쉽게 추가할 수 있다.
+- 만약 ManageGoals컴포넌트 안에 input요소가 있고 해당 값을 입력했을 경우, ActiveGoals가 렌더링 되면 input에 있던 값을 없어진다. 바뀔 때 전 컴포넌트는 DOM요소에서 삭제되기 때문이다.
+- 이때 `keep-alive`컴포넌트를 사용한다. `keep-alive`컴포넌트로 동적컴포넌트를 감싸 작성하면, `컴포넌트를 완전히 제거하지 않고 이들의 상태를 내부에서 캐시로 저장하도록 Vue에 알려준다.`
+
+## slot을 이용한 모달창의 문제점과 해결방안 => Teleport 컴포넌트 사용
+
+- slot을 이용하여 에러 모달창을 만들었을 경우 `시맨틱 관점과 HTML 관점에서 모달의 위치가 올바르지 않다.` 최상위 컴포넌트인 <div id="app">의 밑에 있는것이 맞다.(HTML트리의 루트에 삽입)
+- `teleport 컴포넌트`: DOM구조 내 다른 곳으로 렌더링하고 싶은 부분을 감싸주면 된다.
+- `to 속성`: `CSS선택자`를 넣어 전체페이지에서 HTML요소를 선택한다.
+
+● 부모컴포넌트
+
+```vue
+<template>
+  <teleport to="body">
+    <ErrorModal v-if="isInvalid">
+      <h2>오류</h2>
+      <p>빈값을 입력하였습니다.</p>
+    </ErrorModal>
+  </teleport>
+</template>
+```
+
+● ErrorModal.vue
+
+```vue
+<template>
+  // dialog -> 내장 요소
+  <dialog open>
+    // slot컴포넌트 사용
+    <slot></slot>
+  </dialog>
+</template>
+```
