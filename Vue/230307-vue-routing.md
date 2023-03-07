@@ -200,3 +200,259 @@ routes: [
     ...
   ],
 ```
+
+## 중첩라우트 사용하기
+
+- 중첩 라우트 구성은, 내부에서 라우트를 중첩하려는 라우트로 이동하여 `children옵션`을 추가하는 방법으로 중첩 라우트를 설정하면 된다.
+- App.vue에 추가한 `<router-view>`는 오직 루트 라우트만 다루기 때문에 자식 라우트를 출력하기 위해서는 부모컴포넌트에 두번째 `<router-view>`를 추가해야한다.
+
+```js
+routes: [
+  {
+    path: '/teams',
+    component: TeamsList,
+    children: [
+      {
+        // /teams/t1
+        path: ':teamId', // ⭐️ /(슬래시) 제거!!
+        component: TeamMembers,
+        props: true,
+      },
+    ],
+  },
+],
+```
+
+## 기명 라우트(Named Route)
+
+- `<router-link :to=""></router-link>`에서 to에 할당하는 경로 값을 `객체`로 자세한 설정을 할 수 있다.
+- name을 사용하하면 가독성과 path를 손쉽게 변경할 수 있다.(수정하는 수고로움이 없다)
+- this.$router.push()에서도 객체로 전달하여 name프로퍼티를 지정할 수 있다.
+- `params`와 `query`도 객체에 추가할 수 있다. => this.$route.query로 접근한다.
+
+```js
+routes: [
+    { path: '/', redirect: '/teams' },
+    {
+      name: 'teams',
+      path: '/teams',
+      component: TeamsList,
+      children: [
+        {
+          name: 'team-members',
+          // /teams/t1
+          path: ':teamId',
+          component: TeamMembers,
+          props: true,
+        },
+      ],
+    },
+  ],
+```
+
+```js
+<template>
+  <li>
+    <router-link :to="teamMembersLink">View Members</router-link>
+  </li>
+</template>
+
+<script>
+export default {
+  props: ['id', 'name', 'memberCount'],
+  computed: {
+    teamMembersLink() {
+      // return '/teams/' + this.id;
+      return { name: 'team-members', params: { teamId: this.id }, query: {sort: 'asc'} };
+      // this.$router.push({ name: 'team-members', params: { teamId: this.id } })
+    },
+  },
+};
+</script>
+```
+
+## 기명 `<route-view>`
+
+- 같은 레벨에 여러 route-view를 생성할 때 name에 따라 출력할 컴포넌트를 지정할 수 있다.
+
+👾 예제
+
+- 유연한 footer만들기, teams와 users에 따른 푸터 출력
+
+● App.vue
+
+```vue
+<template>
+  <the-navigation></the-navigation>
+  <main>
+    // default
+    <router-view></router-view>
+  </main>
+  <footer>
+    // 이름 설정!!
+    <router-view name="footer"></router-view>
+  </footer>
+</template>
+```
+
+● main.js
+
+```js
+routes: [
+    { path: '/', redirect: '/teams' },
+    {
+      name: 'teams',
+      path: '/teams',
+      // footer이름을 가진 router-view에 출력할 컴포넌트(TeamsFooter) 설정
+      components: { default: TeamsList, footer: TeamsFooter },
+      children: [
+        {
+          name: 'team-members',
+          // /teams/t1
+          path: ':teamId',
+          component: TeamMembers,
+          props: true,
+        },
+      ],
+    },
+    {
+      path: '/users',
+      // footer이름을 가진 router-view에 출력할 컴포넌트(UsersFooter) 설정
+      components: { default: UsersList, footer: UsersFooter },
+    },
+  ],
+```
+
+## 스크롤 동작 제어하기
+
+- 다른 라우트로 이동하면 자동으로 스크롤이 올라가게 할 수 있다.
+- createRouter객체의 프로퍼티로 `scrollBehavior메서드` 추가
+- `scrollBehavior메서드`는 페이지가 바뀔 때마다 Vue라우터로 호출하는 메서드이다.
+- 인수로 3개(to, from, savedPosition)를 가진다.
+- `to`와 `from`은 컴포넌트 내부에서 `this.$route`로 얻는 값이다. 각각 이동할 페이지와 이동하기 전의 페이지를 나타낸다.
+- `savedPosition`은 뒤로 가기 버튼을 사용할 때만 해당 값이 생기고 없으면 null이다. `이동하기 전의 페이지에서 스크롤 위치가 어디였는지 나타내는 left와 top프로퍼티가 들어있다.`(ex. {left: 0, top: 187})
+- `scrollBehavior메서드`는 페이지가 바뀌었을 때 이동할 브라우저의 스크롤 위치를 나타내는 객체를 반환해야 한다.(ex. return {left: 0, top: 0} === 페이지의 최상단을 의미)
+- 전 페이지의 스크롤위치를 유지하고 페이지 이동을 하려면 `savedPosition`값을 이용하면 된다.
+
+```js
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [...],
+  // linkActiveClass: 'active',
+  scrollBehavior(to, from, savedPosition) {
+    console.log(to, from);
+    if (savedPosition) return savedPosition; // 원래 스크롤 위치로 이동
+    else return { left: 0, top: 0 }; // 최상단으로 스크롤 이동
+  },
+});
+```
+
+## 내비게이션 가드 사용하기
+
+- 인증과 같은 기능을 추가할 때 사용한다.
+- 인증하지 않은 사용자가 특정 라우트에 엑세스할 수 없도록 방지한다.
+- 일부코드를 실행하고 싶을때 페이지 변화를 감지하기에도 유용하다(사용자가 양식을 수정한 걸 저장하지 않은 상태에서 실수로 페이지를 나가지 않도록 방지하는데에 사용한다.)
+
+### beforeEach()
+
+- `beforeEach()`메서드는 내장 메서드로 함수를 인수로서 취급한다.
+- `vue라우터는 한페이지에서 다른 페이지로 이동할 때마다 이 함수가 호출된다.`
+- 콜백함수의 인수로 `to`(이동할 페이지의 라우트객체), `from`(이동하기 전페이지의 라우트객체), `next`(내비게이션 동작을 승인하거나 취소하기 위해 호출해야하는 함수)를 가진다.
+- next()를 호출하면 페이지 이동을 승인한다. next(false) => 페이지 이동을 취소한다. 기본값이 next(true)이다.
+
+👾 전역에서 설정한 beforeEach() - 항상 teams/t2페이지로 이동된다.
+
+```js
+router.beforeEach((to, from, next) => {
+  console.log("Global beforeEach");
+  console.log(to, from);
+  if (to.name === "team-members") {
+    next();
+  } else {
+    next({ name: "team-members", params: { teamId: "t2" } });
+  }
+});
+```
+
+### beforeEnter()
+
+- 라우트 각각에 설정할 수 있는 내비게이션 가드이다.
+
+👾 예제 - main.js
+
+```js
+routes: [
+    {
+      path: '/users',
+      components: { default: UsersList, footer: UsersFooter },
+      beforeEnter(to, from, next) {
+        // /users로 이동할 때마다 beforeEnter()가 실행된다.
+        console.log('users beforeEnter');
+        console.log(to, from);
+        next(); // /users라우트로의 이동을 승인하는 기능을 한다.
+      },
+    },
+  ],
+```
+
+### beforeRouteEnter()
+
+- 컴포넌트 안에서 내비게이션 가드를 할 수 있다.
+- beforeRouteEnter()메서드가 먼저 호출 된 후 이 컴포넌트로의 이동이 승인된다.
+
+👾 예제 - usersList.vue
+
+```vue
+<script>
+import UserItem from "./UserItem.vue";
+
+export default {
+  components: {
+    UserItem,
+  },
+  inject: ["users"],
+  beforeRouteEnter(to, from, next) {
+    console.log("users component boforeRouteEnter");
+    console.log(to, from);
+    next();
+  },
+};
+</script>
+```
+
+### beforeRouteUpdate()
+
+- 컴포넌트 내부에서 직접 호출할 수 있다. => 재사용되는 컴포넌트 내부에서 호출할 수 있다.
+
+### afterEach()
+
+- router에 추가할 수 있는 전역가드 메서드
+- 인수로 콜백한수가 들어오고 콜백함수의 인수로 to,from이 들어온다.
+- afterEach()메서드는 한번 실행되면 이동이 승인되기 때문에 next함수는 필요로 하지 않는다. 이동을 거부하도록 변경할 수 없다.
+- ⭐️ 서버에 분석 데이터를 보내는 데에 유용하다. 이동액션이나 사용자의 페이지변경을 로그로 남기는 등 사용한다.
+
+### 🔥 beforeRouteLeave() 가드
+
+- 컴포넌트 구성객체에 사용한다.
+- 페이지를 떠나려할 때 호출되는 가드메서드
+- 양식에 데이터를 입력하고 저장하지 않은 상태로 실수로 페이지를 전환하는 실수를 방지시킬 수 있다.
+
+```js
+export default {
+  beforeRouteLeave(to, from, next) {
+    console.log("나가기 직전의 상태입니다.");
+    console.log(to, from);
+    if (this.changesSaved) next();
+    else {
+      const userWantsToLeave = confirm("정말 나가시겠습니까?");
+      next(userWantsToLeave);
+    }
+  },
+};
+```
+
+## 라우트 메타 데이터 활용하기
+
+- 메타에는 객체나 다양한 값을 갖을 수 있다.
+- 메타데이터가 유용한 이유는 라우트 객체나 $route객체가 있는 곳 모두에서 메타필드에 엑세스할 수 있기 때문이다. 내비게이션 가드를 할때도 사용할 수 있다.
+- 메타 프로퍼티를 사용해서 이 라우트에 인증이 필요하다고 표시할 수 도있다.
