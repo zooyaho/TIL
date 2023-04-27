@@ -298,3 +298,36 @@ methods: {
   }
 </style>
 ```
+
+### 라우트 변경에 애니메이션 적용하기
+
+- 🔥 라우트 변경 시 초기 애니메이션이 적용되는데 이를 방지하려면 `router.isReady()`를 적용하면 된다.
+- `router.isReady()`는 프로미스를 반환하는데 콜백함수에서 app을 mount시키면 된다.
+
+```js
+router.isReady().then(() => {
+  app.mount("#app");
+});
+```
+
+● vue3
+
+```html
+<template>
+  <router-view v-slot="{ Component }">
+    <transition name="route" mode="out-in">
+      <component :is="Component"></component>
+    </transition>
+  </router-view>
+</template>
+```
+
+● vue2
+
+```html
+<template>
+  <transition name="route" mode="out-in">
+    <router-view></router-view>
+  </transition>
+</template>
+```
